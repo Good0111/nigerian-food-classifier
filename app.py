@@ -1,13 +1,24 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-from tensorflow import lite as tflite
 import os
+
+# Safe import for TFLite runtime to avoid TensorFlow installation crashes
+try:
+    import tflite_runtime.interpreter as tflite
+except ImportError:
+    from tensorflow import lite as tflite
 
 # 1. Page Configuration
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
 
-CLASS_NAMES = ['Abacha and Ugba(african salad)', 'Akara and Eko', 'Amala and Gbegiri- Ewedu', 'Asaro', 'Boli(bole)', 'Chin Chin', 'Egusi Soup', 'Ewa-Agoyin', 'Fried Plantains (dodo)', 'Jollof Rice', 'Meat-pie', 'Moin-Moin', 'Nkwobi', 'Okro Soup', 'Pepper Soup', 'Puff-Puff', 'Suya', 'Vegetable Soup']
+# Your exact 18 food classes in alphabetical order
+CLASS_NAMES = [
+    'Abacha and Ugba(african salad)', 'Akara and Eko', 'Amala and Gbegiri- Ewedu', 
+    'Asaro', 'Boli(bole)', 'Chin Chin', 'Egusi Soup', 'Ewa-Agoyin', 
+    'Fried Plantains (dodo)', 'Jollof Rice', 'Meat-pie', 'Moin-Moin', 
+    'Nkwobi', 'Okro Soup', 'Pepper Soup', 'Puff-Puff', 'Suya', 'Vegetable Soup'
+]
 
 MODEL_PATH = "nigerian_food_model.tflite"
 
@@ -58,3 +69,4 @@ else:
         else:
             st.warning("⚠️ The model is uncertain about this image.")
             st.write(f"Closest guess: **{predicted_class}** ({confidence:.1f}% confidence)")
+
