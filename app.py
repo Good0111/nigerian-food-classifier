@@ -1,13 +1,12 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
+from tensorflow import lite as tflite
 import os
 
-# Safe import for TFLite runtime to avoid TensorFlow installation crashes
-try:
-    import tflite_runtime.interpreter as tflite
-except ImportError:
-    from tensorflow import lite as tflite
+# 1. Page Configuration
+st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
+
 
 # 1. Page Configuration
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
