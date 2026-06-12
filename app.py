@@ -4,11 +4,7 @@ from PIL import Image
 from tensorflow import lite as tflite
 import os
 
-# 1. Page Configuration
-st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
-
-
-# 1. Page Configuration
+# 1. Page Configuration (CALLED ONLY ONCE)
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
 
 # Your exact 18 food classes in alphabetical order
@@ -19,10 +15,13 @@ CLASS_NAMES = [
     'Nkwobi', 'Okro Soup', 'Pepper Soup', 'Puff-Puff', 'Suya', 'Vegetable Soup'
 ]
 
-MODEL_PATH = "nigerian_food_model.tflite"
+# DYNAMIC FILE PATH RESOLUTION
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "nigerian_food_model.tflite")
 
 if not os.path.exists(MODEL_PATH):
-    st.error(f"Error: '{MODEL_PATH}' not found! Place the file in the same folder.")
+    st.error(f"Error: 'nigerian_food_model.tflite' not found! Looking in folder: {BASE_DIR}")
+    st.info("Please make sure the file name is lowercase and uploaded directly into your repository's main folder.")
 else:
     # Load TFLite Model
     interpreter = tflite.Interpreter(model_path=MODEL_PATH)
