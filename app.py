@@ -3,8 +3,9 @@ import numpy as np
 from PIL import Image
 from tensorflow import lite as tflite
 import os
+import urllib.request
 
-# 1. Page Configuration (CALLED ONLY ONCE)
+# 1. Page Configuration
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
 
 # Your exact 18 food classes in alphabetical order
@@ -19,11 +20,20 @@ CLASS_NAMES = [
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "nigerian_food_model.tflite")
 
-if not os.path.exists(MODEL_PATH):
-    st.error(f"Error: 'nigerian_food_model.tflite' not found! Looking in folder: {BASE_DIR}")
-    st.info("Please make sure the file name is lowercase and uploaded directly into your repository's main folder.")
-else:
-    # Load TFLite Model
+# AUTO-DOWNLOAD CORRUPTION BYPASS
+if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 100000:
+    with st.spinner("Downloading your food classifier model weights... please wait..."):
+        GOOGLE_DRIVE_ID = "1PeWnbJzO0kKCoDSSiZjjbHifMArHon8c" 
+        DOWNLOAD_URL = f"https://google.com{GOOGLE_DRIVE_ID}"
+        try:
+            if os.path.exists(MODEL_PATH): 
+                os.remove(MODEL_PATH)
+            urllib.request.urlretrieve(DOWNLOAD_URL, MODEL_PATH)
+        except Exception as e:
+            st.error(f"Failed to fetch model from cloud hosting: {e}")
+
+if os.path.exists(MODEL_PATH):
+    # Load TFLite Model safely
     interpreter = tflite.Interpreter(model_path=MODEL_PATH)
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
@@ -67,4 +77,3 @@ else:
         else:
             st.warning("⚠️ The model is uncertain about this image.")
             st.write(f"Closest guess: **{predicted_class}** ({confidence:.1f}% confidence)")
-
