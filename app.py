@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-from tensorflow import lite as tflite
+import tflite_runtime.interpreter as tflite  # <-- CHANGED THIS LINE
 import os
 
 # 1. Page Configuration
@@ -25,8 +25,8 @@ if not os.path.exists(MODEL_PATH):
     st.info("Please ensure the file name matches perfectly in lowercase on your GitHub main page.")
 else:
     try:
-        # Load TFLite Model
-        interpreter = tflite.Interpreter(model_path=MODEL_PATH)
+        # Load TFLite Model using the lightweight tflite-runtime package
+        interpreter = tflite.Interpreter(model_path=MODEL_PATH)  # <-- CLEAN LAYOUT
         interpreter.allocate_tensors()
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
