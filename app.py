@@ -1,8 +1,9 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import tensorflow as tf  # <-- BACK TO STABLE TENSORFLOW
+import tensorflow as tf
 import os
+import urllib.request
 
 # 1. Page Configuration
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
@@ -19,14 +20,26 @@ CLASS_NAMES = [
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "nigerian_food_model.tflite")
 
-# Check and Load Model directly from your GitHub files
-if not os.path.exists(MODEL_PATH):
-    st.error("Error: 'nigerian_food_model.tflite' was not found in your repository.")
-    st.info("Please ensure the file name matches perfectly in lowercase on your GitHub main page.")
-else:
+# CORRUPTION BYPASS: If the file is missing or broken (less than 100KB), download the real one
+if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 100000:
+    with st.spinner("Downloading your food classifier model weights from secure storage... please wait..."):
+        # This is your exact Google Drive file ID from earlier
+        GOOGLE_DRIVE_ID = "1PeWnbJzO0kKCoDSSiZjjbHifMArHon8c" 
+        DOWNLOAD_URL = f"https://google.com{GOOGLE_DRIVE_ID}"
+        try:
+            # Force remove the corrupted 2-byte file first
+            if os.path.exists(MODEL_PATH): 
+                os.remove(MODEL_PATH)
+            
+            # Download the complete file from your Google Drive
+            urllib.request.urlretrieve(DOWNLOAD_URL, MODEL_PATH)
+        except Exception as e:
+            st.error(f"Failed to fetch model weights: {e}")
+
+if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 100000:
     try:
-        # Load TFLite Model safely using core stable tensorflow API
-        interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)  # <-- SAFE STABLE INTERPRETER
+        # Load TFLite Model safely
+        interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
         interpreter.allocate_tensors()
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
@@ -71,4 +84,6 @@ else:
                 st.write(f"Closest guess: **{predicted_class}** ({confidence:.1f}% confidence)")
                 
     except Exception as err:
-        st.error(f"An unexpected framework error occurred while reading the file structure: {err}")
+        st.error(f"An unexpected framework error occurred while reading the model: {err}")
+else:
+    st.error("Model file is still missing or corrupted. Double-check your Google Drive share permissions.")
