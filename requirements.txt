@@ -1,4 +1,3 @@
 streamlit
-numpy<2.0.0
-Pillow
-tensorflow-cpu
+numpy
+opencv-python-headless
