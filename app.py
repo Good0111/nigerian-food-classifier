@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 import cv2
 import os
-import urllib.request
 
 # 1. Page Configuration
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
@@ -19,27 +18,13 @@ CLASS_NAMES = [
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "nigerian_food_model.tflite")
 
-# CORRUPTION BYPASS: Automatically downloads the real model if the 2-byte file is present
-if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 100000:
-    with st.spinner("Downloading your food classifier model weights from secure storage... please wait..."):
-        GOOGLE_DRIVE_ID = "1PeWnbJzO0kKCoDSSiZjjbHifMArHon8c" 
-        DOWNLOAD_URL = f"https://google.com{GOOGLE_DRIVE_ID}&confirm=t"
-        try:
-            if os.path.exists(MODEL_PATH): 
-                os.remove(MODEL_PATH)
-            
-            # Use a robust User-Agent header block to ensure Google Drive processes the request safely
-            opener = urllib.request.build_opener()
-            opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
-            urllib.request.install_opener(opener)
-            urllib.request.urlretrieve(DOWNLOAD_URL, MODEL_PATH)
-        except Exception as e:
-            st.error(f"Failed to fetch model weights: {e}")
-
-# Validate if the download succeeded and has physical data
-if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 100000:
+# Check if the file exists directly in your GitHub files
+if not os.path.exists(MODEL_PATH):
+    st.error("Error: 'nigerian_food_model.tflite' was not found in your repository.")
+    st.info("Please ensure your model file is uploaded directly into your repository's main folder.")
+else:
     try:
-        # Load TFLite Model using OpenCV's native dnn architecture (No TensorFlow required!)
+        # Load TFLite Model directly from GitHub via OpenCV (No downloads, no internet dependencies!)
         net = cv2.dnn.readNetFromTFLite(MODEL_PATH)
 
         # 2. User Interface
@@ -89,5 +74,3 @@ if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 100000:
                 
     except Exception as err:
         st.error(f"An unexpected framework error occurred while initializing OpenCV: {err}")
-else:
-    st.error("Model weights are missing or unreadable. Please check back shortly.")
