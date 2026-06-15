@@ -1,7 +1,6 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
-import tensorflow as tf
+import cv2
 import os
 import urllib.request
 
@@ -20,29 +19,28 @@ CLASS_NAMES = [
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "nigerian_food_model.tflite")
 
-# CORRUPTION BYPASS: If the file is missing or broken (less than 100KB), download the real one
+# CORRUPTION BYPASS: Automatically downloads the real model if the 2-byte file is present
 if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 100000:
     with st.spinner("Downloading your food classifier model weights from secure storage... please wait..."):
-        # This is your exact Google Drive file ID from earlier
         GOOGLE_DRIVE_ID = "1PeWnbJzO0kKCoDSSiZjjbHifMArHon8c" 
-        DOWNLOAD_URL = f"https://google.com{GOOGLE_DRIVE_ID}"
+        DOWNLOAD_URL = f"https://google.com{GOOGLE_DRIVE_ID}&confirm=t"
         try:
-            # Force remove the corrupted 2-byte file first
             if os.path.exists(MODEL_PATH): 
                 os.remove(MODEL_PATH)
             
-            # Download the complete file from your Google Drive
+            # Use a robust User-Agent header block to ensure Google Drive processes the request safely
+            opener = urllib.request.build_opener()
+            opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
+            urllib.request.install_opener(opener)
             urllib.request.urlretrieve(DOWNLOAD_URL, MODEL_PATH)
         except Exception as e:
             st.error(f"Failed to fetch model weights: {e}")
 
+# Validate if the download succeeded and has physical data
 if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 100000:
     try:
-        # Load TFLite Model safely
-        interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
-        interpreter.allocate_tensors()
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
+        # Load TFLite Model using OpenCV's native dnn architecture (No TensorFlow required!)
+        net = cv2.dnn.readNetFromTFLite(MODEL_PATH)
 
         # 2. User Interface
         st.title("🇳🇬 Nigerian Food Image Classifier")
@@ -52,22 +50,28 @@ if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 100000:
 
         # 3. Processing & Prediction Pipeline
         if uploaded_file is not None:
-            image = Image.open(uploaded_file).convert('RGB')
-            st.image(image, caption="Uploaded Image", use_container_width=True)
+            # Read image directly into OpenCV format
+            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+            opencv_img = cv2.imdecode(file_bytes, 1)
+            
+            # Display uploaded image safely converting BGR to RGB layout
+            st.image(cv2.cvtColor(opencv_img, cv2.COLOR_BGR2RGB), caption="Uploaded Image", use_container_width=True)
             
             with st.spinner("Analyzing textures and ingredients... Please wait..."):
-                img_resized = image.resize((224, 224))
-                img_array = np.array(img_resized, dtype=np.float32)
-                img_array = np.expand_dims(img_array, axis=0)
+                # OpenCV handles rescaling (-1 to 1) and size transformations using blobFromImage
+                blob = cv2.dnn.blobFromImage(
+                    opencv_img, 
+                    scalefactor=1.0/127.5, 
+                    size=(224, 224), 
+                    mean=(127.5, 127.5, 127.5), 
+                    swapRB=True, 
+                    crop=False
+                )
                 
-                # Match the standard MobileNetV2 scaling (-1 to 1)
-                img_array = (img_array / 127.5) - 1.0
+                net.setInput(blob)
+                predictions = net.forward()
                 
-                interpreter.set_tensor(input_details['index'], img_array)
-                interpreter.invoke()
-                predictions = interpreter.get_tensor(output_details['index'])
-                
-                # Normalise scores
+                # Normalise output logit layers using standard Softmax
                 exp_preds = np.exp(predictions - np.max(predictions))
                 probabilities = exp_preds / exp_preds.sum()
                 
@@ -84,6 +88,6 @@ if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 100000:
                 st.write(f"Closest guess: **{predicted_class}** ({confidence:.1f}% confidence)")
                 
     except Exception as err:
-        st.error(f"An unexpected framework error occurred while reading the model: {err}")
+        st.error(f"An unexpected framework error occurred while initializing OpenCV: {err}")
 else:
-    st.error("Model file is still missing or corrupted. Double-check your Google Drive share permissions.")
+    st.error("Model weights are missing or unreadable. Please check back shortly.")
