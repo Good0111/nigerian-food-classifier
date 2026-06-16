@@ -6,7 +6,7 @@ import os
 # 1. Page Configuration
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
 
-# Your exact 18 food classes
+# Your exact 18 food classes in alphabetical order
 CLASS_NAMES = [
     'Abacha and Ugba(african salad)', 'Akara and Eko', 'Amala and Gbegiri- Ewedu', 
     'Asaro', 'Boli(bole)', 'Chin Chin', 'Egusi Soup', 'Ewa-Agoyin', 
@@ -42,12 +42,12 @@ else:
             st.image(cv2.cvtColor(opencv_img, cv2.COLOR_BGR2RGB), caption="Uploaded Image", use_container_width=True)
             
             with st.spinner("Analyzing textures and ingredients... Please wait..."):
-                # OpenCV handles rescaling (-1 to 1) and size transformations using blobFromImage
+                # OPTION A: Scales image pixels to 0-1 range to match rescaling=1./255
                 blob = cv2.dnn.blobFromImage(
                     opencv_img, 
-                    scalefactor=1.0/127.5, 
+                    scalefactor=1.0/255.0,     # Match 1./255 normalization
                     size=(224, 224), 
-                    mean=(127.5, 127.5, 127.5), 
+                    mean=(0, 0, 0),            # No mean subtraction
                     swapRB=True, 
                     crop=False
                 )
@@ -55,7 +55,7 @@ else:
                 net.setInput(blob)
                 predictions = net.forward()
                 
-                # FIXED: Flatten the prediction layout to handle OpenCV's shape output safely
+                # Flatten the prediction layout to handle OpenCV's shape output safely
                 flat_preds = predictions.flatten()
                 
                 # Normalise output layers using standard Softmax
