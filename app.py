@@ -1,12 +1,13 @@
 import streamlit as st
 import numpy as np
-import cv2
+from PIL import Image
+import tensorflow as tf
 import os
 
 # 1. Page Configuration
 st.set_page_config(page_title="Nigerian Food Classifier", page_icon="🇳🇬", layout="centered")
 
-# Your exact 18 food classes in alphabetical order
+# Your exact 18 food classes
 CLASS_NAMES = [
     'Abacha and Ugba(african salad)', 'Akara and Eko', 'Amala and Gbegiri- Ewedu', 
     'Asaro', 'Boli(bole)', 'Chin Chin', 'Egusi Soup', 'Ewa-Agoyin', 
@@ -23,8 +24,11 @@ if not os.path.exists(MODEL_PATH):
     st.info("Please ensure your model file is uploaded directly into your repository's main folder.")
 else:
     try:
-        # Load TFLite Model via OpenCV natively
-        net = cv2.dnn.readNetFromTFLite(MODEL_PATH)
+        # Load TFLite Model natively via TensorFlow to prevent OpenCV layout crashes
+        interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+        interpreter.allocate_tensors()
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
 
         # 2. User Interface
         st.title("🇳🇬 Nigerian Food Image Classifier")
@@ -34,35 +38,31 @@ else:
 
         # 3. Processing & Prediction Pipeline
         if uploaded_file is not None:
-            # Read image directly into OpenCV format
-            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-            opencv_img = cv2.imdecode(file_bytes, 1)
-            
-            # Display uploaded image safely converting BGR to RGB layout
-            st.image(cv2.cvtColor(opencv_img, cv2.COLOR_BGR2RGB), caption="Uploaded Image", use_container_width=True)
+            image = Image.open(uploaded_file).convert('RGB')
+            st.image(image, caption="Uploaded Image", use_container_width=True)
             
             with st.spinner("Analyzing textures and ingredients... Please wait..."):
-                # OPTION A: Scales image pixels to 0-1 range to match rescaling=1./255
-                blob = cv2.dnn.blobFromImage(
-                    opencv_img, 
-                    scalefactor=1.0/255.0,     # Match 1./255 normalization
-                    size=(224, 224), 
-                    mean=(0, 0, 0),            # No mean subtraction
-                    swapRB=True, 
-                    crop=False
-                )
+                # Resize to standard MobileNet shape
+                img_resized = image.resize((224, 224))
+                img_array = np.array(img_resized, dtype=np.float32)
+                img_array = np.expand_dims(img_array, axis=0)
                 
-                net.setInput(blob)
-                predictions = net.forward()
+                # Match Option A: Scale image pixels to 0-1 range (rescaling=1./255)
+                img_array = img_array / 255.0
                 
-                # Flatten the prediction layout to handle OpenCV's shape output safely
+                # Run prediction through native interpreter safely
+                interpreter.set_tensor(input_details[0]['index'], img_array)
+                interpreter.invoke()
+                predictions = interpreter.get_tensor(output_details[0]['index'])
+                
+                # Flatten array structure safely
                 flat_preds = predictions.flatten()
                 
                 # Normalise output layers using standard Softmax
                 exp_preds = np.exp(flat_preds - np.max(flat_preds))
                 probabilities = exp_preds / exp_preds.sum()
                 
-                # Extract the class mapping index directly from the flattened array
+                # Extract classification results
                 max_idx = np.argmax(probabilities)
                 predicted_class = CLASS_NAMES[max_idx]
                 confidence = probabilities[max_idx] * 100
@@ -76,4 +76,4 @@ else:
                 st.write(f"Closest guess: **{predicted_class}** ({confidence:.1f}% confidence)")
                 
     except Exception as err:
-        st.error(f"An unexpected framework error occurred while initializing OpenCV: {err}")
+        st.error(f"An unexpected framework error occurred during execution: {err}")
